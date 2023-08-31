@@ -6,6 +6,7 @@ Usage:
 import logging
 
 from docopt import docopt
+from tabulate import tabulate
 
 from pythinq2 import __version__, ThinqAPI
 
@@ -22,7 +23,17 @@ def authenticate(username, password, country="US", language="en-US"):
         country_code=country,
         language=language,
     )
-    api.authenticate()
+    token = api.authenticate()
+
+    print(
+        tabulate(
+            [
+                ["Access Token", token["access_token"]],
+                ["Refresh Token", token["refresh_token"]],
+            ],
+            tablefmt="fancy_grid",
+        ),
+    )
 
 
 def main():
