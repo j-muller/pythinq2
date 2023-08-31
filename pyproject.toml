@@ -15,6 +15,8 @@ classifiers = [
     "Programming Language :: Python :: 3",
 ]
 dependencies = [
+    "docopt >=0.6.2,<1.0.0",
+    "requests >=2.31.0,<3.0.0",
 ]
 dynamic = ["version"]
 
@@ -31,6 +33,9 @@ packages = [
 
 [tool.setuptools.dynamic]
 version = {attr = "pythinq2.__version__"}
+
+[project.scripts]
+pythinq2 = "pythinq2.cli:main"
 
 [tool.ruff]
 # Enable the pycodestyle (`E`) and Pyflakes (`F`) rules by default.
