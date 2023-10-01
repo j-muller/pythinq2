@@ -2,6 +2,7 @@ from email.utils import format_datetime
 import hashlib
 from urllib.parse import quote, urlencode, urlparse, parse_qs, unquote
 import datetime
+import logging
 
 import requests
 
@@ -12,6 +13,8 @@ from pythinq2.constants import (
     CLIENT_ID,
 )
 from pythinq2.utils import generate_signature
+
+LOGGER = logging.getLogger(__name__)
 
 
 class ThinqAuth:
@@ -55,6 +58,14 @@ class ThinqAuth:
             },
         )
         response.raise_for_status()
+
+        body = response.json()
+
+        # The access token might need to be refreshed
+        if body.get("lgoauth_error_code") == "LG.OAUTH.EC.2004":
+            LOGGER.debug("LG API access token has expired, refreshing it")
+            self.refresh_token()
+            return self.user_no
 
         self._user_no = response.json()["account"]["userNo"]
         return self._user_no
