@@ -22,6 +22,42 @@ class ThinqAuth:
         self._access_token = None
         self._refresh_token = None
         self._oauth2_backend_url = None
+        self._user_no = None
+
+    @property
+    def is_authenticated(self):
+        return bool(self._access_token)
+
+    @property
+    def user_no(self):
+        if self._user_no:
+            return self._user_no
+
+        timestamp = format_datetime(datetime.datetime.utcnow())
+        profile_url = f"{self._oauth2_backend_url}users/profile"
+        signature = generate_signature(
+            f"/users/profile\n{timestamp}",
+            OAUTH_SECRET_KEY,
+        )
+
+        response = requests.get(
+            url=profile_url,
+            headers={
+                "Accept": "application/json",
+                "Authorization": f"Bearer {self._access_token}",
+                "X-Lge-Svccode": "SVC202",
+                "X-Application-Key": APPLICATION_KEY,
+                "lgemp-x-app-key": CLIENT_ID,
+                "X-Device-Type": "M01",
+                "X-Device-Platform": "ADR",
+                "x-lge-oauth-date": timestamp,
+                "x-lge-oauth-signature": signature,
+            },
+        )
+        response.raise_for_status()
+
+        self._user_no = response.json()["account"]["userNo"]
+        return self._user_no
 
     def login(self, username, password):
         """Log the user on the Thinq API."""
@@ -161,7 +197,39 @@ class ThinqAuth:
         response.raise_for_status()
 
         token = response.json()
+        token["oauth2_backend_url"] = unquote(token["oauth2_backend_url"])
+
         self._access_token = token["access_token"]
         self._refresh_token = token["refresh_token"]
-        self._oauth2_backend_url = unquote(token["oauth2_backend_url"])
+        self._oauth2_backend_url = token["oauth2_backend_url"]
         return token
+
+    def refresh_token(self):
+        """Refresh access token."""
+        token_url = f"{self._oauth2_backend_url}oauth/1.0/oauth2/token"
+        data = {
+            "grant_type": "refresh_token",
+            "refresh_token": self._refresh_token,
+        }
+        timestamp = format_datetime(datetime.datetime.utcnow())
+
+        request_url = f"/oauth/1.0/oauth2/token?{urlencode(data)}"
+        signature = generate_signature(
+            f"{request_url}\n{timestamp}", OAUTH_SECRET_KEY
+        )
+
+        response = requests.post(
+            url=token_url,
+            params=data,
+            headers={
+                "x-lge-app-os": "ADR",
+                "x-lge-appkey": CLIENT_ID,
+                "x-lge-oauth-signature": signature,
+                "x-lge-oauth-date": timestamp,
+                "Accept": "application/json",
+                "Content-Type": "application/x-www-form-urlencoded",
+            },
+        )
+        response.raise_for_status()
+
+        self._access_token = response.json()["access_token"]
